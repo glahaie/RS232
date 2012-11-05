@@ -9,149 +9,116 @@ import java.util.*;
 
 public class SerialCom {
 
-	/**
-	 * @param args
-	 */
+	private List<String> listePorts;
+	private InputStream in;
+	private OutputStream out;
+	private CommPort commPort;
+	private SerialPort serialPort;
+	private CommPortIdentifier portIdentifier;
+	private GUI gui;
+	private SerialWriter serialWriter;
+	private SerialReader serialReader;
 	
 	//Obtenir une liste des ports disponibles
-	private static List<String> decouvrirPorts () {
+	protected void decouvrirPorts() {
 		
 		CommPortIdentifier cp;
 		Enumeration portIdentifiers = CommPortIdentifier.getPortIdentifiers();
 		
-		List<String> liste = new ArrayList<String>();
+		listePorts = new ArrayList<String>();
 		
-		liste = null;
 		while(portIdentifiers.hasMoreElements()) {
 			cp = (CommPortIdentifier)portIdentifiers.nextElement();
-			liste.add(cp.getName());
+			listePorts.add(cp.getName());
 		}
 		
-		return liste;
+		System.out.println(listePorts);
 		
 	}
 	
-	
-	//Connect sur le port, si disponible
-	void connect (String nomPort) throws Exception {
-		
-		CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier(nomPort);
-		if(portIdentifier.isCurrentlyOwned()) {
-			System.out.println("Le port choisi est déjà utilisé.");
-		} else {
-			CommPort commPort = portIdentifier.open(this.getClass().getName(), 2000);
-			if (commPort instanceof SerialPort) {
-				SerialPort serialPort = (SerialPort) commPort;
-				serialPort.setSerialPortParams(57600,SerialPort.DATABITS_8,
-						SerialPort.STOPBITS_1,SerialPort.PARITY_NONE);
-                
-                InputStream in = serialPort.getInputStream();
-                OutputStream out = serialPort.getOutputStream();
-                
-                (new Thread(new SerialWriter(out))).start();
-                
-                serialPort.addEventListener(new SerialReader(in));
-                serialPort.notifyOnDataAvailable(true);
-			} else {
-				System.out.println("Veuillez utiliser un port en série");
-			}
-		}
-		
-		
-		
+	protected List<String> getListe() {
+		return listePorts;
 	}
 	
-	public static void main(String[] args) {
-		
-		InputStream in = System.in;
-		BufferedReader br = new BufferedReader(new InputStreamReader(in));
-		int choix = Integer.MIN_VALUE;
-		
-		System.out.println("Veuillez choisir un port:");
-		List<String> l = decouvrirPorts();
-		for(int i = 0; i < l.size(); i++) {
-			System.out.println(i + ": " + l.get(i));
+	protected void fermerConn() {
+		if (serialPort != null) {
+			commPort.close();
 		}
-		
+	}
+	
+	protected void openPort(String portSelected) {
+		if(serialPort != null) {
+			commPort.close();
+		}
 		try {
-			while(choix <0 || choix >= l.size()) {
-				System.out.println("Entrer le numéro du port:");
-				choix = Integer.parseInt(br.readLine());
-				
-				if(choix < 0 || choix >= l.size()) {
-					System.out.println("Mauvaise valeur, veuillez choisir de nouveau.");
-				}
-			}
-
-			(new SerialCom()).connect(l.get(choix));
+			connect(portSelected);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-
 	
-	/* Classe qui permet de lire sur le port en série
-	 * 
-	 */
-	public static class SerialReader implements SerialPortEventListener 
-	{
-		private InputStream in;
-		private byte[] buffer = new byte[1024];
-
-		public SerialReader ( InputStream in )
-		{
-			this.in = in;
-		}
-
-		public void serialEvent(SerialPortEvent arg0) {
-			int data;
-
-			try
-			{
-				int len = 0;
-				while ( ( data = in.read()) > -1 )
-				{
-					if ( data == '\n' ) {
-						break;
-					}
-					buffer[len++] = (byte) data;
-				}
-				System.out.print(new String(buffer,0,len));
-			}
-			catch ( IOException e ) {
-				e.printStackTrace();
-				System.exit(-1);
-			}
+	protected void ouvrirLecture() {
+		
+	    try {
+			serialPort.addEventListener(new SerialReader(in, gui));
+	        serialPort.notifyOnDataAvailable(true);
+		} catch (TooManyListenersException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
-	/* Classe pour écrire les données du port 
-	 * 
-	 */
-	public static class SerialWriter implements Runnable 
-	{
-		OutputStream out;
-
-		public SerialWriter ( OutputStream out )
-		{
-			this.out = out;
+	protected void fermerLecture() {
+		if(in != null) {
+			serialPort.notifyOnDataAvailable(false);
+			serialPort.removeEventListener();
+		} else {
+			System.out.println("Vous devez vous connecter.");
 		}
 
-		public void run ()
-		{
-			try
-			{
-				int c = 0;
-				while ( ( c = System.in.read()) > -1 )
-				{
-					this.out.write(c);
-				}
-			}
-			catch ( IOException e )
-			{
-				e.printStackTrace();
-				System.exit(-1);
-			}
-		}
 	}
+	
+	protected void ouvrirEcriture() {
+		if (out != null) {
+			
+			(new Thread(new SerialWriter(out, gui))).start();
+		} else {
+			System.out.println("Vous devez vous connecter avant.");
+		}
+	}		  
+	
+	protected void fermerEcriture() {
+		System.out.println("fermer");
+	}
+	
+	//Connect sur le port, si disponible
+	void connect (String nomPort) throws Exception {
+		
+		portIdentifier = CommPortIdentifier.getPortIdentifier(nomPort);
+		if(portIdentifier.isCurrentlyOwned()) {
+			System.out.println("Le port choisi est d�j� utilis�.");
+		} else {
+			commPort = portIdentifier.open(this.getClass().getName(), 2000);
+			if (commPort instanceof SerialPort) {
+				serialPort = (SerialPort) commPort;
+				serialPort.setSerialPortParams(57600,SerialPort.DATABITS_8,
+						SerialPort.STOPBITS_1,SerialPort.PARITY_NONE);
+                
+                in = serialPort.getInputStream();
+                out = serialPort.getOutputStream();
+                
+			} else {
+				System.out.println("Veuillez utiliser un port en s�rie");
+			}
+		}		
+	}
+	
+	public static void main(String[] args) {
+		
+		SerialCom s = new SerialCom();
+		s.decouvrirPorts();
+		System.out.println(s.listePorts);
+		GUI gui = new GUI(s);
+	}
+
 }
