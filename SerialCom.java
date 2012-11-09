@@ -1,23 +1,42 @@
-import gnu.io.*;
+/* SerialCom.java
+ * Par Guillaume Lahaie, Charles-Emmanuel Joyal et Karl Brodeur
+ * 
+ * La classe permet de décrouvrir les ports disponibles sur l'ordinateur, et
+ * de s'y connecter. Il est ensuite possible d'écrire dans la zone de texte
+ * et tout ce qui est écrit est envoyé sur le port.
+ * 
+ * De la même façon, si des informations sont envoyées sur le port, elles seront
+ * affichées dans la zone de texte.
+ * 
+ * Pour le moment, la classe utilise la package gnu.io, donc rxtx, mais il devrait
+ * être possible de la changer pour java comm.
+ * 
+ */
 
-import java.io.BufferedReader;
+
+import gnu.io.*;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.*;
 
-public class SerialCom {
+
+public class SerialCom implements SerialPortEventListener {
 
 	private List<String> listePorts;
-	private InputStream in;
-	private OutputStream out;
+	protected InputStream in;
+	protected OutputStream out;
 	private CommPort commPort;
 	private SerialPort serialPort;
 	private CommPortIdentifier portIdentifier;
-	private GUI gui;
-	private SerialWriter serialWriter;
-	private SerialReader serialReader;
+	private static GUI gui;
+	private boolean connected = false;
+	
+	//Constructeur
+	public SerialCom () {
+		decouvrirPorts();
+		gui = new GUI(this);
+	}
 	
 	//Obtenir une liste des ports disponibles
 	protected void decouvrirPorts() {
@@ -32,10 +51,9 @@ public class SerialCom {
 			listePorts.add(cp.getName());
 		}
 		
-		System.out.println(listePorts);
-		
 	}
 	
+	//Obtenir la liste des ports détectés
 	protected List<String> getListe() {
 		return listePorts;
 	}
@@ -50,75 +68,74 @@ public class SerialCom {
 		if(serialPort != null) {
 			commPort.close();
 		}
-		try {
-			connect(portSelected);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	protected void ouvrirLecture() {
-		
-	    try {
-			serialPort.addEventListener(new SerialReader(in, gui));
-	        serialPort.notifyOnDataAvailable(true);
-		} catch (TooManyListenersException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	protected void fermerLecture() {
-		if(in != null) {
-			serialPort.notifyOnDataAvailable(false);
-			serialPort.removeEventListener();
-		} else {
-			System.out.println("Vous devez vous connecter.");
-		}
+		connect(portSelected);
 
-	}
+	}	
+	//Connecte sur le port nomPort. Si le port n'est pas disponible, affiche
+	//un message d'erreur.
+	void connect (String nomPort) {
 	
-	protected void ouvrirEcriture() {
-		if (out != null) {
-			
-			(new Thread(new SerialWriter(out, gui))).start();
-		} else {
-			System.out.println("Vous devez vous connecter avant.");
-		}
-	}		  
-	
-	protected void fermerEcriture() {
-		System.out.println("fermer");
-	}
-	
-	//Connect sur le port, si disponible
-	void connect (String nomPort) throws Exception {
-		
-		portIdentifier = CommPortIdentifier.getPortIdentifier(nomPort);
-		if(portIdentifier.isCurrentlyOwned()) {
-			System.out.println("Le port choisi est déjà  utilisé.");
-		} else {
+		try {
+			portIdentifier = CommPortIdentifier.getPortIdentifier(nomPort);
+
 			commPort = portIdentifier.open(this.getClass().getName(), 2000);
 			if (commPort instanceof SerialPort) {
 				serialPort = (SerialPort) commPort;
 				serialPort.setSerialPortParams(57600,SerialPort.DATABITS_8,
-						SerialPort.STOPBITS_1,SerialPort.PARITY_NONE);
+						SerialPort.STOPBITS_1,SerialPort.PARITY_EVEN);
                 
                 in = serialPort.getInputStream();
                 out = serialPort.getOutputStream();
                 
-			} else {
-				System.out.println("Veuillez utiliser un port en série");
+                serialPort.addEventListener(this);
+                serialPort.notifyOnDataAvailable(true);
+                
+        		gui.infos.setText("Connecté au port " + nomPort + "\n");
+        		gui.infos.setEditable(true);
+        		gui.infos.requestFocus();
+        		
+        		connected = true;               	                
 			}
-		}		
+		} catch (NoSuchPortException e1) {
+			gui.infos.setText("Le port choisi n'existe pas.\n");
+		} catch (PortInUseException e2) {
+			gui.infos.setText("Problème lors de la connexion. Le port choisi est déjà utilisé.\n");
+		} catch (IOException e3) {
+			gui.infos.setText("Problème lors de la connexion.\n");
+		} catch(Exception e4) {
+			e4.printStackTrace();
+		}
+	
+	}
+	
+	public boolean isConnected() {
+		return connected;
 	}
 	
 	public static void main(String[] args) {
 		
-		SerialCom s = new SerialCom();
-		s.decouvrirPorts();
-		System.out.println(s.listePorts);
-		GUI gui = new GUI(s);
+		new SerialCom();
+	}
+
+	
+	
+	//Event pour la réception d'informations sur le port choisi.
+	public void serialEvent(SerialPortEvent e) {
+	
+		try {
+			
+			switch(e.getEventType()) {
+				case SerialPortEvent.PE: gui.infos.append("Problème de parité.\n");
+										 break;
+				case SerialPortEvent.DATA_AVAILABLE:	byte singleData = (byte)in.read();
+									gui.infos.append(new String(new byte[] {singleData}));
+									break;
+			}
+			
+		} catch (IOException e1) {
+			gui.infos.setText("Problème lors de la réception d'informations.\n");
+		}
+		
 	}
 
 }

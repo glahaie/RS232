@@ -1,45 +1,36 @@
+/* BarreMenu.java
+ * Par Guillaume Lahaie, Charles-Emmanuel Joyal et Karl Brodeur
+ * 
+ * Interface graphique pour SerialCom, permet d'écrire et de lire
+ * les données envoyées sur le port sélectionné.
+ * 
+ * Création de la barre de menu.
+ * 
+ */
+
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.util.List;
 
-import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 
-/* MenuBar.java
- * Par Guillaume Lahaie
- * 
- * Cette classe gÃ¨re la barre de menu de l'interface graphique de Vols. La barre permet surtout
- * de changer de panel pour faire diffÃ©rentes opÃ©rations.
- *
- *DerniÃ¨re modification: 4 dÃ©cembre 2011.
- * 
- */
-
 public class BarreMenu extends JMenuBar implements ItemListener {
 
 	private JMenu fichier, port;
-	private JCheckBoxMenuItem lire, ecrire;
-	private JMenuItem quitter, scan;
-	private GUI gui;
+	private JMenuItem quitter;
 	private SerialCom serialCom;
 	private JRadioButtonMenuItem[] menuRadio;
-	private boolean ecriture, lecture;
 	private String portSelected;
 	private ButtonGroup buttonGroup;
 
 	//Constructeur
-	public BarreMenu (SerialCom serialCom, GUI gui) {
+	public BarreMenu (SerialCom serialCom) {
 		this.serialCom = serialCom;
-		this.gui = gui;
-		ecriture = false;
-		lecture = false;
 		creerMenu();
 	}
 	
@@ -53,50 +44,18 @@ public class BarreMenu extends JMenuBar implements ItemListener {
 				System.exit(0);
 			}
 		});				
-		lire = new JCheckBoxMenuItem("Lire");
-		lire.addItemListener(new ItemListener() {
-			public void itemStateChanged(ItemEvent e) {
-				AbstractButton button = (AbstractButton) e.getItem();
-				if(button.isSelected()) {
-					ecriture = true;
-					serialCom.ouvrirLecture();
-				} else {
-					ecriture = false;
-					serialCom.fermerLecture();
-				}	
-			}
-		});
-		ecrire = new JCheckBoxMenuItem("Ecrire");
-		ecrire.addItemListener(new ItemListener() {
-			public void itemStateChanged(ItemEvent e) {
-				AbstractButton button = (AbstractButton) e.getItem();
-				if(button.isSelected()) {
-					ecriture = true;
-					serialCom.ouvrirEcriture();
-				} else {
-					ecriture = false;
-					serialCom.fermerEcriture();				
-				}
-			}
-		});
-
-		fichier.add(lire);
-		fichier.add(ecrire);
-		fichier.addSeparator();
 		fichier.add(quitter);
 				
 		add(fichier);
 		creerPorts();
 		
-	} //Fin crÃ©erMenu
+	} //Fin creerMenu
 	
+	
+	//Crée des boutons radios pour le choix du port. Si aucun port est détecté,
+	//affiche alors dans le menu un message indiquant qu'aucun port n'est disponible.
 	protected void creerPorts() {
 		
-		System.out.println("call creerPorts()");
-		
-		if(port != null) {
-			remove(port);
-		}
 		port = new JMenu("Ports");
 		buttonGroup = new ButtonGroup();
 		
@@ -112,21 +71,12 @@ public class BarreMenu extends JMenuBar implements ItemListener {
 			}
 		}
 		
-		port.addSeparator();
-		
-		scan = new JMenuItem("Balayer les ports");
-		scan.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				gui.scanPorts();
-				//Besoin de mettre à jour la liste des ports, peut-être
-			}
-		});
-		port.add(scan);
 		add(port);
 		revalidate();
 	}
 
-	@Override
+	
+	//Sélection d'un des ports
 	public void itemStateChanged(ItemEvent e) {
 
 		
@@ -134,16 +84,10 @@ public class BarreMenu extends JMenuBar implements ItemListener {
 			if(e.getSource() == menuRadio[i]) {
 				portSelected = serialCom.getListe().get(i);
 			}
+			menuRadio[i].setEnabled(false);
 		}
 		serialCom.openPort(portSelected);
-	}
-	
-	protected boolean getEcriture() {
-		return ecriture;
-	}
-	
-	protected boolean getLecture() {
-		return lecture;
+				
 	}
 
-} //Fin MenuBar
+} //Fin BarreMenu

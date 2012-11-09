@@ -1,23 +1,22 @@
+/* GUI.java
+ * Par Guillaume Lahaie, Charles-Emmanuel Joyal et Karl Brodeur
+ * 
+ * Interface graphique pour SerialCom, permet d'écrire et de lire
+ * les données envoyées sur le port sélectionné.
+ */
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.IOException;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
-/* GUI.java
- * Par Guillaume Lahaie
- * 
- * Gestion de l'ensemble des panels de l'interface pour la gestion des vols d'avion et des passager.
- * Les panels utilisÃ©s seront dans d'autres classes.
- *  
- * DerniÃ¨re modification: 4 dÃ©cembre 2011
- *  
- *  Utilisation pour TP1 de INF3270 - 2 novembre 2011
- */
+
 public class GUI extends JPanel implements KeyListener {
 
 	protected JFrame frame;
@@ -28,22 +27,21 @@ public class GUI extends JPanel implements KeyListener {
 	private BarreMenu bar;
 	private JPanel panel;
 	private SerialCom serialCom;
-	private char c = 'a';
 		
 	GUI(SerialCom serialCom) {
 		this.serialCom = serialCom;
-		infos = new JTextArea("Ouverture de la gestion des vols.\n");
+		infos = new JTextArea("Veuillez choisir un port.\n");
 		infos.setSize(LARGEUR, 50);
-		infos.setEditable(true);
+		infos.setEditable(false);
 		infos.addKeyListener(this);
 
 		js = new JScrollPane(infos);
 		js.setPreferredSize(new Dimension(LARGEUR, 50));
-		bar = new BarreMenu(serialCom, this);
+		bar = new BarreMenu(serialCom);
 		panel = new JPanel(new BorderLayout());
 		
 		//Vient de l'ancien main
-		this.frame = new JFrame("Gestion de vols");
+		this.frame = new JFrame("SerialCom");
 		this.frame.setSize(LARGEUR, HAUTEUR);
 		this.frame.setJMenuBar(this.bar);
 		this.panel.add(this.js, BorderLayout.CENTER);
@@ -55,32 +53,31 @@ public class GUI extends JPanel implements KeyListener {
 		
 	//Méthodes pour BarreMenu.
 	protected void scanPorts() {
-		System.out.println("Call scanPorst");
 		serialCom.decouvrirPorts();
 		bar.creerPorts();
 		repaint();
 	}
+
 	
-	protected void ecrireSurTexte(String s) {
-		infos.append(s);
-	}
 	
-	protected int envoyerTexte() {
-		return (int)c;
-	}
+	//KeyListener - Seulement keyTyped est utilisé
+	public void keyPressed(KeyEvent e) {}
+
+	public void keyReleased(KeyEvent arg0) {}
 
 	@Override
-	public void keyPressed(KeyEvent e) {
-		if (bar.getEcriture()) {
-			c = e.getKeyChar();
+	public void keyTyped(KeyEvent e) {
+		
+		if(serialCom.isConnected()) {
+			try {
+				serialCom.out.write(e.getKeyChar());
+			} catch (IOException e1) {
+				infos.setText("Problème lors de l'envoi des données.\n");
+			}
 		}
 		
 	}
 
-	@Override
-	public void keyReleased(KeyEvent arg0) {}
 
-	@Override
-	public void keyTyped(KeyEvent arg0) {}
 	
 }
