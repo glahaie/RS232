@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.*;
+import java.awt.event.KeyEvent;
 
 
 public class SerialCom implements SerialPortEventListener {
@@ -31,6 +32,7 @@ public class SerialCom implements SerialPortEventListener {
 	private CommPortIdentifier portIdentifier;
 	private static GUI gui;
 	private boolean connected = false;
+	
 	
 	//Constructeur
 	public SerialCom () {
@@ -81,7 +83,7 @@ public class SerialCom implements SerialPortEventListener {
 			commPort = portIdentifier.open(this.getClass().getName(), 2000);
 			if (commPort instanceof SerialPort) {
 				serialPort = (SerialPort) commPort;
-				serialPort.setSerialPortParams(57600,SerialPort.DATABITS_8,
+				serialPort.setSerialPortParams(9600,SerialPort.DATABITS_8,
 						SerialPort.STOPBITS_1,SerialPort.PARITY_EVEN);
                 
                 in = serialPort.getInputStream();
@@ -89,6 +91,7 @@ public class SerialCom implements SerialPortEventListener {
                 
                 serialPort.addEventListener(this);
                 serialPort.notifyOnDataAvailable(true);
+                serialPort.notifyOnParityError(true);
                 
         		gui.infos.setText("Connecté au port " + nomPort + "\n");
         		gui.infos.setEditable(true);
@@ -121,14 +124,22 @@ public class SerialCom implements SerialPortEventListener {
 	
 	//Event pour la réception d'informations sur le port choisi.
 	public void serialEvent(SerialPortEvent e) {
-	
+		
 		try {
 			
 			switch(e.getEventType()) {
+				case SerialPortEvent.FE: gui.infos.append("Problème de framing.\n");
+										 break;
 				case SerialPortEvent.PE: gui.infos.append("Problème de parité.\n");
 										 break;
 				case SerialPortEvent.DATA_AVAILABLE:	byte singleData = (byte)in.read();
-									gui.infos.append(new String(new byte[] {singleData}));
+									if((char)singleData == (char)KeyEvent.VK_BACK_SPACE) {
+										String chaine = gui.infos.getText();
+										gui.infos.setText(chaine.substring(0, chaine.length() -1));
+									} else if(!(Character.isIdentifierIgnorable((char)singleData))) {
+										gui.infos.append(new String(new byte[] {singleData}));
+									}
+
 									break;
 			}
 			
