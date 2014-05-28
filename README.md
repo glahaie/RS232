@@ -1,4 +1,5 @@
-INF3270_TP1
+RS232
 ===========
 
-Numéro 1 du TP1 de INF3270
+Simple java application for homework to transfer text through RS232 connection
+between two computers.
